@@ -20,9 +20,8 @@ import Exception403 from '../pages/Exception/403';
 
 const { Content } = Layout;
 
-// Conversion router to menu.
-function formatter(data, parentAuthority, parentName) {
-  return data
+function mapRoutesToMenu(routes, parentAuthority, parentName) {
+  return routes
     .map(item => {
       if (!item.name || !item.path) {
         return null;
@@ -42,7 +41,7 @@ function formatter(data, parentAuthority, parentName) {
         authority: item.authority || parentAuthority,
       };
       if (item.routes) {
-        const children = formatter(item.routes, item.authority, locale);
+        const children = mapRoutesToMenu(item.routes, item.authority, locale);
         // Reduce memory usage
         result.children = children;
       }
@@ -52,7 +51,7 @@ function formatter(data, parentAuthority, parentName) {
     .filter(item => item);
 }
 
-const memoizeOneFormatter = memoizeOne(formatter, isEqual);
+const memoizedMapRoutesToMenu = memoizeOne(mapRoutesToMenu, isEqual);
 
 const query = {
   'screen-xs': {
@@ -143,9 +142,9 @@ class BasicLayout extends React.PureComponent {
 
   getMenuData() {
     const {
-      route: { routes },
+      route: { routes, authority },
     } = this.props;
-    return memoizeOneFormatter(routes);
+    return memoizedMapRoutesToMenu(routes, authority);
   }
 
   /**
@@ -154,16 +153,16 @@ class BasicLayout extends React.PureComponent {
    */
   getBreadcrumbNameMap() {
     const routerMap = {};
-    const mergeMenuAndRouter = data => {
+    const flattenMenuData = data => {
       data.forEach(menuItem => {
         if (menuItem.children) {
-          mergeMenuAndRouter(menuItem.children);
+          flattenMenuData(menuItem.children);
         }
         // Reduce memory usage
         routerMap[menuItem.path] = menuItem;
       });
     };
-    mergeMenuAndRouter(this.getMenuData());
+    flattenMenuData(this.getMenuData());
     return routerMap;
   }
 
@@ -180,11 +179,11 @@ class BasicLayout extends React.PureComponent {
     if (!currRouterData) {
       return 'Ant Design Pro';
     }
-    const message = formatMessage({
+    const pageName = formatMessage({
       id: currRouterData.locale || currRouterData.name,
       defaultMessage: currRouterData.name,
     });
-    return `${message} - Ant Design Pro`;
+    return `${pageName} - Ant Design Pro`;
   };
 
   getLayoutStyle = () => {
